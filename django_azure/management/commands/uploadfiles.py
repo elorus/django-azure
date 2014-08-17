@@ -1,0 +1,67 @@
+import os
+from optparse import make_option
+from django.conf import settings
+from django.core.management.base import NoArgsCommand, CommandError
+from ... import settings as ls
+from ...storage import AzureStorage
+
+
+class Command(NoArgsCommand):
+    option_list = NoArgsCommand.option_list + (
+            make_option('--source',
+                        action='store',
+                        dest='source',
+                        default=settings.MEDIA_ROOT,
+                        help='Local path to source folder'),
+            make_option('--container',
+                        action='store',
+                        dest='container',
+                        default=ls.AZURE_DEFAULT_CONTAINER,
+                        help='Azure container destination'))
+
+    def handle_noargs(self, **options):
+        self.set_options(**options)
+        if not os.path.isdir(self.source):
+            raise CommandError('Non existing local path: %s' % self.source)
+        if not hasattr(settings, 'AZURE_ACCOUNT_NAME'):
+            raise CommandError('AZURE_ACCOUNT_NAME setting is missing')
+        if not hasattr(settings, 'AZURE_ACCOUNT_KEY'):
+            raise CommandError('AZURE_ACCOUNT_KEY setting is missing')
+        if self.container is None and not hasattr(settings, 'AZURE_DEFAULT_CONTAINER'):
+            raise CommandError('AZURE_DEFAULT_CONTAINER setting is missing')
+
+        self.log('Starting uploading from "%s" to Azure Storage '
+                 'container "%s"' % (self.source, self.container))
+
+        storage = AzureStorage(container=self.container)
+        uploaded_files = []
+        for root, dirs, files in os.walk(self.source): #@UnusedVariable
+            for f in files:
+                path = os.path.join(root, f)
+                blob_name = os.path.relpath(path, self.source).replace('\\', '/')
+                self.log('uploading %s...' % blob_name)
+                try:
+                    with open(path, 'rb') as source_file:
+                        storage.save(blob_name, source_file)                
+                except Exception as e:
+                    self.log('upload aborted...')
+                    self.log(str(e), 3)
+                    return
+                else:
+                    uploaded_files.append(blob_name)
+        self.stdout.write('%s files uploaded.' % len(uploaded_files))
+
+    def log(self, msg, level=2):
+        """
+        Small log helper
+        """
+        if self.verbosity >= level:
+            self.stdout.write(msg)
+
+    def set_options(self, **options):
+        """
+        Set instance variables based on an options dict
+        """
+        self.source = options['source'] or settings.MEDIA_ROOT
+        self.container = options['container'] or ls.AZURE_DEFAULT_CONTAINER
+        self.verbosity = int(options.get('verbosity', 1))

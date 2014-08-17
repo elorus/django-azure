@@ -1,0 +1,9 @@
+/.project
+/.pydevproject
+/dist
+/.settings
+/tests
+/build
+/example_project.db
+*.pyc
+/django_azure.egg-info
