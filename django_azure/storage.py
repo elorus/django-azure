@@ -125,7 +125,7 @@ else:
             super(CachedAzureStorage, self).__init__(*args, **kwargs)
             self.remote_storage = AzureStorage(
                     container=ls.AZURE_STATIC_FILES_CONTAINER,
-                    allow_override=True)()
+                    allow_override=True)
     
         def save(self, name, content):
             """
