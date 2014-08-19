@@ -126,22 +126,27 @@ else:
             self.remote_storage = AzureStorage(
                     container=ls.AZURE_STATIC_FILES_CONTAINER,
                     allow_override=True)
-    
-        def save(self, name, content):
+
+	def get_available_name(self, name):
+	    name = self.remote_storage._clean_name(name)
+	    if self.exists(name):
+		self.delete(name)
+	    return name
+
+        def _save(self, name, content):
             """
             Save in both storages
             """
-            # get the remote name
-            name = self.remote_storage.save(name, content)
-            # ...and then save locally
-            super(CachedAzureStorage, self).save(name, content)
-            return name
+            # store remotely
+	    self.remote_storage._save(name, content)
+	    # ... and then locally
+            return super(CachedAzureStorage, self)._save(name, content)
 
         def delete(self, name):
             """
             Delete in both storages
             """
-            super(CachedAzureStorage, self).save(name)
+            super(CachedAzureStorage, self).delete(name)
             self.remote_storage.delete(name)
 
         def url(self, name):
@@ -149,3 +154,4 @@ else:
             Return the Azure url
             """
             return self.remote_storage.url(name)
+
