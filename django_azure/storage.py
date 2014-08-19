@@ -1,22 +1,27 @@
 import mimetypes
 from datetime import datetime
 from django.core.files.base import ContentFile
-from django.core.files.storage import Storage, get_storage_class
+from django.core.files.storage import Storage
 from azure import WindowsAzureMissingResourceError
 from azure.storage.blobservice import BlobService
 from . import settings as ls
 
 
 class AzureStorage(Storage):
+    """
+    A storage that sends files to a Microsoft Azure container.
+    """
     account_name = ls.AZURE_ACCOUNT_NAME
     account_key = ls.AZURE_ACCOUNT_KEY
 
     def __init__(self, container=ls.AZURE_DEFAULT_CONTAINER,
-            cdn_host=ls.AZURE_CDN_HOST, protocol=ls.AZURE_DEFAULT_PROTOCOL):
+            cdn_host=ls.AZURE_CDN_HOST, protocol=ls.AZURE_DEFAULT_PROTOCOL,
+            allow_override=ls.AZURE_BLOB_OVERWRITE):
         self._service = None
         self.container = container
         self.cdn_host = cdn_host
         self.protocol = protocol
+        self.allow_override = allow_override
 
     def _clean_name(self, name):
         return name.replace("\\", "/")
@@ -54,7 +59,7 @@ class AzureStorage(Storage):
             return True
 
     def get_available_name(self, name):
-        if ls.AZURE_BLOB_OVERWRITE:
+        if self.allow_override:
             return self._clean_name(name)
         return super(AzureStorage, self).get_available_name(name)
 
@@ -92,21 +97,55 @@ class AzureStorage(Storage):
 
 
 class StaticFilesAzureStorage(AzureStorage):
+    """
+    Default Azure STATICFILES_STORAGE. It's generally expensive
+    since it asks the clous for every operation.
+    """
     def __init__(self, *args, **kwargs):
         super(StaticFilesAzureStorage, self).__init__(*args, **kwargs)
         self.container = ls.AZURE_STATIC_FILES_CONTAINER
 
 
-class CachedAzureStorage(StaticFilesAzureStorage):
-    """
-    Azure storage backend that saves the files locally, too.
-    """
-    def __init__(self, *args, **kwargs):
-        super(CachedAzureStorage, self).__init__(*args, **kwargs)
-        self.local_storage = get_storage_class(
-                'compressor.storage.CompressorFileStorage')()
+try:
+    from compressor.srorage import CompressorFileStorage # @UnresolvedImport
+except:
+    pass 
 
-    def save(self, name, content):
-        name = super(CachedAzureStorage, self).save(name, content)
-        self.local_storage._save(name, content)
-        return name
+else:
+    class CachedAzureStorage(CompressorFileStorage):
+        """
+        A storage that sends files to Azure as well.
+        It returns the remote url to be suitable for static files.
+        To be used along with django-compressor. Ie, in settings:
+
+        STATICFILES_STORAGE = 'django_azure.storage.CachedAzureStorage'
+        COMPRESS_STORAGE = 'django_azure.storage.CachedAzureStorage'
+        """
+        def __init__(self, *args, **kwargs):
+            super(CachedAzureStorage, self).__init__(*args, **kwargs)
+            self.remote_storage = AzureStorage(
+                    container=ls.AZURE_STATIC_FILES_CONTAINER,
+                    allow_override=True)()
+    
+        def save(self, name, content):
+            """
+            Save in both storages
+            """
+            # get the remote name
+            name = self.remote_storage.save(name, content)
+            # ...and then save locally
+            super(CachedAzureStorage, self).save(name, content)
+            return name
+
+        def delete(self, name):
+            """
+            Delete in both storages
+            """
+            super(CachedAzureStorage, self).save(name)
+            self.remote_storage.delete(name)
+
+        def url(self, name):
+            """
+            Return the Azure url
+            """
+            return self.remote_storage.url(name)
