@@ -107,7 +107,7 @@ class StaticFilesAzureStorage(AzureStorage):
 
 
 try:
-    from compressor.srorage import CompressorFileStorage # @UnresolvedImport
+    from compressor.storage import CompressorFileStorage # @UnresolvedImport
 except:
     pass 
 
