@@ -127,19 +127,19 @@ else:
                     container=ls.AZURE_STATIC_FILES_CONTAINER,
                     allow_override=True)
 
-	def get_available_name(self, name):
-	    name = self.remote_storage._clean_name(name)
-	    if self.exists(name):
-		self.delete(name)
-	    return name
+        def get_available_name(self, name):
+            name = self.remote_storage._clean_name(name)
+            if self.exists(name):
+                self.delete(name)
+            return name
 
         def _save(self, name, content):
             """
             Save in both storages
             """
             # store remotely
-	    self.remote_storage._save(name, content)
-	    # ... and then locally
+            self.remote_storage._save(name, content)
+            # ... and then locally
             return super(CachedAzureStorage, self)._save(name, content)
 
         def delete(self, name):
