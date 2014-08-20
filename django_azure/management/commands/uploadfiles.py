@@ -1,6 +1,7 @@
 import os
 from optparse import make_option
 from django.conf import settings
+from django.contrib.staticfiles.utils import matches_patterns
 from django.core.management.base import NoArgsCommand, CommandError
 from ... import settings as ls
 from ...storage import AzureStorage
@@ -8,16 +9,19 @@ from ...storage import AzureStorage
 
 class Command(NoArgsCommand):
     option_list = NoArgsCommand.option_list + (
-            make_option('--source',
-                        action='store',
-                        dest='source',
-                        default=settings.MEDIA_ROOT,
+            make_option('--source', action='store', 
+                        default=settings.MEDIA_ROOT, dest='source',
                         help='Local path to source folder'),
-            make_option('--container',
-                        action='store',
-                        dest='container',
-                        default=ls.AZURE_DEFAULT_CONTAINER,
-                        help='Azure container destination'))
+            make_option('--container', action='store',
+                        default=ls.AZURE_DEFAULT_CONTAINER, dest='container',
+                        help='Azure container destination'),
+            make_option('-i', '--ignore', action='append', default=[],
+                        dest='ignore_patterns', metavar='PATTERN',
+                        help="Ignore files matching this patterns"),
+            make_option('--no-default-ignore', action='store_false',
+                        dest='use_default_ignore_patterns', default=True,
+                        help="Don't ignore the common private patterns "
+                                "'.*' and '*~'."))
 
     def handle_noargs(self, **options):
         self.set_options(**options)
@@ -37,6 +41,8 @@ class Command(NoArgsCommand):
         uploaded_files = []
         for root, dirs, files in os.walk(self.source): #@UnusedVariable
             for f in files:
+                if matches_patterns(f, self.ignore_patterns):
+                    continue
                 path = os.path.join(root, f)
                 blob_name = os.path.relpath(path, self.source).replace('\\', '/')
                 self.log('uploading %s...' % blob_name)
@@ -65,3 +71,7 @@ class Command(NoArgsCommand):
         self.source = options['source'] or settings.MEDIA_ROOT
         self.container = options['container'] or ls.AZURE_DEFAULT_CONTAINER
         self.verbosity = int(options.get('verbosity', 1))
+        ignore_patterns = options['ignore_patterns']
+        if options['use_default_ignore_patterns']:
+            ignore_patterns += ['.*', '*~']
+        self.ignore_patterns = list(set(ignore_patterns))
