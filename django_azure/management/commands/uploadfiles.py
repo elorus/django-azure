@@ -21,7 +21,9 @@ class Command(NoArgsCommand):
             make_option('--no-default-ignore', action='store_false',
                         dest='use_default_ignore_patterns', default=True,
                         help="Don't ignore the common private patterns "
-                                "'.*' and '*~'."))
+                                "'.*' and '*~'."),
+            make_option('--dir', action='store', dest='dir',
+                        help="Directory to upload files in."))
 
     def handle_noargs(self, **options):
         self.set_options(**options)
@@ -45,10 +47,12 @@ class Command(NoArgsCommand):
                     continue
                 path = os.path.join(root, f)
                 blob_name = os.path.relpath(path, self.source).replace('\\', '/')
+                if self.dir:
+                    blob_name = os.path.join(self.dir, blob_name)
                 self.log('uploading %s...' % blob_name)
                 try:
                     with open(path, 'rb') as source_file:
-                        storage.save(blob_name, source_file)                
+                        storage.save(blob_name, source_file)
                 except Exception as e:
                     self.log('upload aborted...')
                     self.log(str(e), 3)
@@ -75,3 +79,4 @@ class Command(NoArgsCommand):
         if options['use_default_ignore_patterns']:
             ignore_patterns += ['.*', '*~']
         self.ignore_patterns = list(set(ignore_patterns))
+        self.dir = options['dir']
