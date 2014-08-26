@@ -38,9 +38,17 @@ class AzureStorageTestCase(SimpleTestCase):
         self.assertListEqual(dirs, [])
         self.assertListEqual(files, [u'blob-3', u'blob-4'])
 
+        (dirs, files) = self.storage.listdir(u'', flat=True)
+        self.assertListEqual(dirs, [])
+        self.assertListEqual(files, [u'dummy-1/blob-2',
+                                     u'dummy-1/dummy-2/blob-1',
+                                     u'dummy-2/blob-3',
+                                     u'dummy-2/blob-4',
+                                     u'dummy-3/blob-5'])
+
         # clean up dummy blobs
-        self.storage.delete(u'dummy-1/dummy-2/blob-1')
         self.storage.delete(u'dummy-1/blob-2')
+        self.storage.delete(u'dummy-1/dummy-2/blob-1')
         self.storage.delete(u'dummy-2/blob-3')
         self.storage.delete(u'dummy-2/blob-4')
         self.storage.delete(u'dummy-3/blob-5')

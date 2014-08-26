@@ -63,16 +63,22 @@ class AzureStorage(Storage):
             return self._clean_name(name)
         return super(AzureStorage, self).get_available_name(name)
 
-    def listdir(self, path):
-        dirs, files = set(), []
-        base_parts = path.split("/") if path and path != '' else []
-        for blob in self.service.list_blobs(self.container, 
-                prefix=path if path != '' else None):
-            parts = blob.name.split("/")[len(base_parts):]
-            if len(parts) == 1:
-                files.append(parts[-1])
-            elif len(parts) > 1:
-                dirs.add(parts[0])
+    def listdir(self, path, flat=False):
+        blobs = self.service.list_blobs(self.container,
+                                        path if path != '' else None)
+        if flat:
+            if path and not path.endswith('/'):
+                path = u'%s/' % path
+            return ([], [blob.name[len(path):] for blob in blobs])
+        else:
+            dirs, files = set(), []
+            base_parts = path.split("/") if path and path != '' else []
+            for blob in blobs:
+                parts = blob.name.split("/")[len(base_parts):]
+                if len(parts) == 1:
+                    files.append(parts[-1])
+                elif len(parts) > 1:
+                    dirs.add(parts[0])
         return (list(dirs), files)
 
     def modified_time(self, name):
