@@ -93,7 +93,7 @@ class AzureStorage(Storage):
         return self._service
 
     def size(self, name):
-        return len(self._open(name))
+        return int(self._get_properties(name)['content-length'])
 
     def url(self, name):
         return '{0}://{1}/{2}/{3}'.format(self.protocol, self.cdn_host,
