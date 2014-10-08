@@ -96,7 +96,7 @@ class AzureStorage(Storage):
         return int(self._get_properties(name)['content-length'])
 
     def url(self, name):
-        return '{0}://{1}/{2}/{3}'.format(self.protocol, self.cdn_host,
+        return u'{0}://{1}/{2}/{3}'.format(self.protocol, self.cdn_host,
                                           self.container, name) \
                 if self.cdn_host else self.service.make_blob_url(
                         container_name=self.container, blob_name=name)
