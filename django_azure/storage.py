@@ -1,5 +1,6 @@
 import mimetypes
 from datetime import datetime
+from urllib import quote
 from django.core.files.base import ContentFile
 from django.core.files.storage import Storage
 from azure import WindowsAzureMissingResourceError
@@ -97,9 +98,9 @@ class AzureStorage(Storage):
 
     def url(self, name):
         return u'{0}://{1}/{2}/{3}'.format(self.protocol, self.cdn_host,
-                                          self.container, name) \
+                                          self.container, quote(name)) \
                 if self.cdn_host else self.service.make_blob_url(
-                        container_name=self.container, blob_name=name)
+                        container_name=self.container, blob_name=quote(name))
 
 
 class StaticFilesAzureStorage(AzureStorage):
