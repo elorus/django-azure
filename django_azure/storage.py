@@ -98,9 +98,9 @@ class AzureStorage(Storage):
 
     def url(self, name):
         return u'{0}://{1}/{2}/{3}'.format(self.protocol, self.cdn_host,
-                                          self.container, quote(name)) \
+                                          self.container, quote(name.encode('utf8'))) \
                 if self.cdn_host else self.service.make_blob_url(
-                        container_name=self.container, blob_name=quote(name))
+                        container_name=self.container, blob_name=quote(name.encode('utf8')))
 
 
 class StaticFilesAzureStorage(AzureStorage):
