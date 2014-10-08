@@ -36,8 +36,8 @@ class Command(NoArgsCommand):
         if self.container is None and not hasattr(settings, 'AZURE_DEFAULT_CONTAINER'):
             raise CommandError('AZURE_DEFAULT_CONTAINER setting is missing')
 
-        self.log('Starting uploading from "%s" to Azure Storage '
-                 'container "%s"' % (self.source, self.container))
+        self.log(u'Starting uploading from "%s" to Azure Storage '
+                 u'container "%s"' % (self.source, self.container))
 
         storage = AzureStorage(container=self.container)
         uploaded_files = []
@@ -49,17 +49,17 @@ class Command(NoArgsCommand):
                 blob_name = os.path.relpath(path, self.source).replace('\\', '/')
                 if self.dir:
                     blob_name = os.path.join(self.dir, blob_name)
-                self.log('uploading %s...' % blob_name)
+                self.log(u'uploading %s...' % blob_name)
                 try:
                     with open(path, 'rb') as source_file:
                         storage.save(blob_name, source_file)
                 except Exception as e:
-                    self.log('upload aborted...')
+                    self.log(u'upload aborted...')
                     self.log(str(e), 3)
                     return
                 else:
                     uploaded_files.append(blob_name)
-        self.stdout.write('%s files uploaded.' % len(uploaded_files))
+        self.stdout.write(u'%s files uploaded.' % len(uploaded_files))
 
     def log(self, msg, level=2):
         """
