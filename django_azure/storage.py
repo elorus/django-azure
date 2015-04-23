@@ -1,3 +1,5 @@
+import StringIO
+import gzip
 import mimetypes
 from datetime import datetime
 from urllib import quote
@@ -18,15 +20,35 @@ class AzureStorage(Storage):
     def __init__(self, container=ls.AZURE_DEFAULT_CONTAINER,
                  cdn_host=ls.AZURE_CDN_HOST,
                  protocol=ls.AZURE_DEFAULT_PROTOCOL,
-                 allow_override=ls.AZURE_BLOB_OVERWRITE):
+                 allow_override=ls.AZURE_BLOB_OVERWRITE,
+                 gzipped=ls.AZURE_GZIPPED_CONTENT,
+                 gzipped_content_types=ls.AZURE_GZIPPED_CONTENT_TYPES):
         self._service = None
         self.container = container
         self.cdn_host = cdn_host
         self.protocol = protocol
         self.allow_override = allow_override
+        self.gzipped = gzipped
+        self.gzipped_content_types = gzipped_content_types
 
     def _clean_name(self, name):
         return name.replace("\\", "/")
+
+    def _compress_content(self, content):
+        """Gzip a given string content."""
+        file_obj = StringIO.StringIO()
+        gzipped_file = gzip.GzipFile(mode='wb', compresslevel=6, fileobj=file_obj)
+
+        try:
+            gzipped_file.write(content.read())
+        finally:
+            gzipped_file.close()
+
+        file_obj.seek(0)
+        content.file = file_obj
+        content.seek(0)
+
+        return content
 
     def _get_properties(self, name):
         return self.service.get_blob_properties(container_name=self.container,
@@ -37,16 +59,23 @@ class AzureStorage(Storage):
                                                  blob_name=name))
 
     def _save(self, name, content):
+        extra_headers = {}
+
         if hasattr(content.file, 'content_type'):
             content_type = content.file.content_type
         else:
             content_type = mimetypes.guess_type(name)[0] or u'application/octet-stream'
 
+        if self.gzipped and content_type in self.gzipped_content_types:
+            content = self._compress_content(content)
+            extra_headers.update({'x_ms_blob_content_encoding': 'gzip'})
+
         self.service.put_blob(container_name=self.container,
                               blob_name=name,
                               blob=content.read(),
                               x_ms_blob_type='BlockBlob',
-                              x_ms_blob_content_type=content_type)
+                              x_ms_blob_content_type=content_type,
+                              **extra_headers)
         return name
 
     def delete(self, name):
@@ -170,4 +199,3 @@ else:
             Return the Azure url
             """
             return self.remote_storage.url(name)
-
