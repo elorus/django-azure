@@ -16,8 +16,9 @@ class AzureStorage(Storage):
     account_key = ls.AZURE_ACCOUNT_KEY
 
     def __init__(self, container=ls.AZURE_DEFAULT_CONTAINER,
-            cdn_host=ls.AZURE_CDN_HOST, protocol=ls.AZURE_DEFAULT_PROTOCOL,
-            allow_override=ls.AZURE_BLOB_OVERWRITE):
+                 cdn_host=ls.AZURE_CDN_HOST,
+                 protocol=ls.AZURE_DEFAULT_PROTOCOL,
+                 allow_override=ls.AZURE_BLOB_OVERWRITE):
         self._service = None
         self.container = container
         self.cdn_host = cdn_host
@@ -28,26 +29,30 @@ class AzureStorage(Storage):
         return name.replace("\\", "/")
 
     def _get_properties(self, name):
-        return self.service.get_blob_properties(self.container, name)
+        return self.service.get_blob_properties(container_name=self.container,
+                                                blob_name=name)
 
     def _open(self, name, mode='rb'):
-        return ContentFile(self.service.get_blob(self.container, name))
+        return ContentFile(self.service.get_blob(container_name=self.container,
+                                                 blob_name=name))
 
     def _save(self, name, content):
         if hasattr(content.file, 'content_type'):
             content_type = content.file.content_type
         else:
-            content_type = mimetypes.guess_type(name)[0] or \
-                    u'application/octet-stream'
+            content_type = mimetypes.guess_type(name)[0] or u'application/octet-stream'
 
-        self.service.put_blob(self.container, name, content.read(),
+        self.service.put_blob(container_name=self.container,
+                              blob_name=name,
+                              blob=content.read(),
                               x_ms_blob_type='BlockBlob',
                               x_ms_blob_content_type=content_type)
         return name
 
     def delete(self, name):
         try:
-            self.service.delete_blob(self.container, name)
+            self.service.delete_blob(container_name=self.container,
+                                     blob_name=name)
         except WindowsAzureMissingResourceError:
             pass
 
@@ -65,8 +70,8 @@ class AzureStorage(Storage):
         return super(AzureStorage, self).get_available_name(name)
 
     def listdir(self, path, flat=False):
-        blobs = self.service.list_blobs(self.container,
-                                        path if path != '' else None)
+        blobs = self.service.list_blobs(container_name=self.container,
+                                        prefix=path if path != '' else None)
         if flat:
             if path and not path.endswith('/'):
                 path = u'%s/' % path
@@ -89,24 +94,27 @@ class AzureStorage(Storage):
     @property
     def service(self):
         if self._service is None:
-            self._service = BlobService(self.account_name,
-                    self.account_key, self.protocol)
+            self._service = BlobService(account_name=self.account_name,
+                                        account_key=self.account_key,
+                                        protocol=self.protocol)
         return self._service
 
     def size(self, name):
         return int(self._get_properties(name)['content-length'])
 
     def url(self, name):
-        return u'{0}://{1}/{2}/{3}'.format(self.protocol, self.cdn_host,
-                                          self.container, quote(name.encode('utf8'))) \
-                if self.cdn_host else self.service.make_blob_url(
-                        container_name=self.container, blob_name=quote(name.encode('utf8')))
+        if self.cdn_host:
+            return u'{0}://{1}/{2}/{3}'.format(self.protocol, self.cdn_host,
+                                               self.container, quote(name.encode('utf8')))
+        else:
+            return self.service.make_blob_url(container_name=self.container,
+                                              blob_name=quote(name.encode('utf8')))
 
 
 class StaticFilesAzureStorage(AzureStorage):
     """
     Default Azure STATICFILES_STORAGE. It's generally expensive
-    since it asks the clous for every operation.
+    since it asks the cloud for every operation.
     """
     def __init__(self, *args, **kwargs):
         super(StaticFilesAzureStorage, self).__init__(*args, **kwargs)
@@ -131,8 +139,9 @@ else:
         def __init__(self, *args, **kwargs):
             super(CachedAzureStorage, self).__init__(*args, **kwargs)
             self.remote_storage = AzureStorage(
-                    container=ls.AZURE_STATIC_FILES_CONTAINER,
-                    allow_override=True)
+                container=ls.AZURE_STATIC_FILES_CONTAINER,
+                allow_override=True
+            )
 
         def get_available_name(self, name):
             name = self.remote_storage._clean_name(name)
