@@ -35,20 +35,16 @@ class AzureStorage(Storage):
         return name.replace("\\", "/")
 
     def _compress_content(self, content):
-        """Gzip a given string content."""
-        file_obj = StringIO.StringIO()
-        gzipped_file = gzip.GzipFile(mode='wb', compresslevel=6, fileobj=file_obj)
+        """ Gzip a given string content """
+        zbuf = StringIO.StringIO()
+        zfile = gzip.GzipFile(mode="wb", compresslevel=6, fileobj=zbuf)
 
-        try:
-            gzipped_file.write(content.read())
-        finally:
-            gzipped_file.close()
+        zfile.write(content.read())
+        zfile.close()
+        
+        content
 
-        file_obj.seek(0)
-        content.file = file_obj
-        content.seek(0)
-
-        return content
+        return ContentFile(zbuf.getvalue())
 
     def _get_properties(self, name):
         return self.service.get_blob_properties(container_name=self.container,
