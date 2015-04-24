@@ -25,6 +25,6 @@ setup(
       include_package_data = True,
       install_requires = [
         "Django>=1.6",
-        "azure==0.10.1"
+        "azure==0.10.0"
         ],
 )
