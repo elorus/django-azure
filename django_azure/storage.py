@@ -35,14 +35,14 @@ class AzureStorage(Storage):
         return name.replace("\\", "/")
 
     def _compress_content(self, content):
-        """ Gzip a given string content """
+        """ Gzips a string content """
         zbuf = StringIO.StringIO()
         zfile = gzip.GzipFile(mode="wb", compresslevel=6, fileobj=zbuf)
 
         zfile.write(content.read())
         zfile.close()
-        
-        content
+
+        content.seek(0)
 
         return ContentFile(zbuf.getvalue())
 
