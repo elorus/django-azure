@@ -1,3 +1,4 @@
+import re
 import os
 from tempfile import SpooledTemporaryFile
 from django.conf import settings
@@ -52,10 +53,12 @@ class Storage(BaseStorage):
         return self.AZURE_DIRECTORY
 
     def delete_file(self, filepath):
+        filepath = os.path.join(self.AZURE_DIRECTORY, filepath)
         self.service.delete_blob(self.AZURE_CONTAINER, filepath)
 
     def list_directory(self):
-        return [blob.name for blob in self.service.list_blobs(
+        return [re.sub(r'^%s/' % self.AZURE_DIRECTORY, '', blob.name) \
+                for blob in self.service.list_blobs(
                 self.AZURE_CONTAINER, prefix=self.AZURE_DIRECTORY)]
 
     def write_file(self, filehandle):
